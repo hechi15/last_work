@@ -1,12 +1,6 @@
 import { useState } from 'react'
-
-// 날짜를 '2026-11-25' 같은 글자로 바꿔 주는 함수
-function toDateText(date) {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
+import { toDateText } from '../utils/date'
+import { calculateMonthlySummary, getBudgetStatus } from '../utils/summary'
 
 // 샘플 내역: 오늘 날짜 3개 + 지난 달 날짜 1개
 const today = new Date()
@@ -32,34 +26,10 @@ function MainPage() {
   const [budgetInput, setBudgetInput] = useState('')
   const [budgetError, setBudgetError] = useState('')
 
-  // 이번 달 내역만 골라서 합계 계산하기
+  // 계산은 utils 파일의 함수에게 맡긴다
   const thisMonth = toDateText(new Date()).slice(0, 7)
-  const monthEntries = entries.filter((entry) => entry.date.slice(0, 7) === thisMonth)
-
-  let incomeTotal = 0
-  let expenseTotal = 0
-  for (const entry of monthEntries) {
-    if (entry.type === 'income') {
-      incomeTotal += entry.amount
-    } else {
-      expenseTotal += entry.amount
-    }
-  }
-  const balance = incomeTotal - expenseTotal
-
-    // 예산 대비 지출 비율로 상태 정하기 (예산을 정했을 때만)
-  let budgetStatus = ''
-  let usedPercent = '0.0'
-  if (budget !== null) {
-    usedPercent = ((expenseTotal / budget) * 100).toFixed(1)
-    if (expenseTotal > budget) {
-      budgetStatus = '초과'
-    } else if (expenseTotal * 100 >= budget * 70) {
-      budgetStatus = '주의'
-    } else {
-      budgetStatus = '정상'
-    }
-  }
+  const { incomeTotal, expenseTotal, balance } = calculateMonthlySummary(entries, thisMonth)
+  const budgetResult = getBudgetStatus(expenseTotal, budget)
 
   function handleSubmit(e) {
     e.preventDefault()
@@ -119,7 +89,7 @@ function MainPage() {
           <button type="submit">예산 정하기</button>
         </form>
         {budgetError && <p style={{ color: 'tomato' }}>{budgetError}</p>}
-        {budget === null ? (
+        {budgetResult === null ? (
           <p>아직 예산을 정하지 않았어요</p>
         ) : (
           <>
@@ -127,7 +97,7 @@ function MainPage() {
               예산: {budget.toLocaleString()}원 / 남은 예산: {(budget - expenseTotal).toLocaleString()}원
             </p>
             <p>
-              상태: {budgetStatus} (예산의 {usedPercent}% 사용)
+              상태: {budgetResult.status} (예산의 {budgetResult.usedPercent}% 사용)
             </p>
           </>
         )}
